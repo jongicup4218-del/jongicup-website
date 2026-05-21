@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>에피트 아파트 옵션 선택 계산기</title>
+    <style>
+        body { font-family: 'Malgun Gothic', sans-serif; background-color: #f4f7f6; color: #333; margin: 0; padding: 20px; }
+        .container { max-width: 800px; margin: 0 auto; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); padding-bottom: 100px; }
+        h1 { text-align: center; color: #2c3e50; font-size: 24px; }
+        .type-selector { margin-bottom: 20px; text-align: center; background: #e8f4f8; padding: 15px; border-radius: 8px;}
+        select { padding: 10px; font-size: 16px; border-radius: 5px; border: 1px solid #ccc; font-weight: bold; color: #2980b9;}
+        .option-group { margin-bottom: 20px; border: 1px solid #e1e8ed; border-radius: 8px; overflow: hidden; }
+        .group-title { background: #2c3e50; color: white; padding: 10px 15px; font-weight: bold; border-bottom: 1px solid #e1e8ed; }
+        .option-item { display: flex; align-items: center; justify-content: space-between; padding: 12px 15px; border-bottom: 1px solid #f0f0f0; }
+        .option-item:hover { background-color: #f9fbfb; }
+        .option-item:last-child { border-bottom: none; }
+        .option-label { display: flex; align-items: center; gap: 10px; cursor: pointer; flex: 1; font-size: 15px; }
+        .price { font-weight: bold; color: #e74c3c; width: 130px; text-align: right; }
+        .vote-btn { background: #3498db; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 13px; margin-left: 15px; min-width: 60px;}
+        .vote-btn:hover { background: #2980b9; }
+        .total-section { position: fixed; bottom: 0; left: 0; right: 0; background: #2c3e50; color: #fff; padding: 20px; display: flex; justify-content: center; align-items: center; font-size: 22px; box-shadow: 0 -2px 10px rgba(0,0,0,0.3); z-index: 100; gap: 30px;}
+        .total-price-text { color: #f1c40f; font-weight: bold; font-size: 26px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>서수원 에피트 옵션 시뮬레이터</h1>
+    
+    <div class="type-selector">
+        <label for="aptType"><b>내 타입 선택 : </b></label>
+        <select id="aptType" onchange="renderOptions()">
+            <option value="74">74 타입</option>
+            <option value="84A">84A 타입</option>
+            <option value="84B">84B 타입</option>
+            <option value="103A">103A 타입</option>
+            <option value="103B" selected>103B 타입</option>
+            <option value="117">117 타입</option>
+        </select>
+    </div>
+
+    <div id="optionsContainer">
+        </div>
+</div>
+
+<div class="total-section">
+    <span>합계 금액 :</span>
+    <span id="totalPrice" class="total-price-text">0 원</span>
+</div>
+
+<script>
+    // 엑셀의 모든 데이터를 정리한 배열입니다. 추후 득표수(votes) 숫자만 수정하시면 됩니다.
+    const optionsData = [
+        {
+            category: "❄️ 천장형 시스템에어컨 (일반형) [LG]",
+            items: [
+                { name: "선택1: 거실+침실1", prices: { "74": 4000000 }, votes: 0 },
+                { name: "선택2: 거실+침실1,2,3", prices: { "74": 6900000 }, votes: 0 },
+                { name: "선택3: 거실+주방+침실1", prices: { "84A": 6000000, "84B": 6000000, "103A": 6000000, "103B": 6000000, "117": 6000000 }, votes: 0 },
+                { name: "선택4: 거실+주방+침실1,2,3", prices: { "84A": 8400000, "84B": 8400000, "103A": 8600000, "103B": 8600000, "117": 8800000 }, votes: 0 },
+                { name: "선택5: 거실+주방+침실1,2,3+알파룸", prices: { "103A": 10100000, "103B": 10100000, "117": 11000000 }, votes: 0 },
+                { name: "선택6: 거실+주방+침실1,2,3+알파룸+가족실", prices: { "117": 12500000 }, votes: 0 }
+            ]
+        },
+        {
+            category: "💎 천장형 시스템에어컨 (고급형) [LG]",
+            items: [
+                { name: "선택7: 거실+침실1", prices: { "74": 4600000 }, votes: 0 },
+                { name: "선택8: 거실+침실1,2,3", prices: { "74": 7900000 }, votes: 0 },
+                { name: "선택9: 거실+주방+침실1", prices: { "84A": 6800000, "84B": 6800000, "103A": 6800000, "103B": 6800000, "117": 6800000 }, votes: 0 },
+                { name: "선택10: 거실+주방+침실1,2,3", prices: { "84A": 9600000, "84B": 9600000, "103A": 9800000, "103B": 9800000, "117": 10000000 }, votes: 0 },
+                { name: "선택11: 거실+주방+침실1,2,3+알파룸", prices: { "103A": 11500000, "103B": 11500000, "117": 12400000 }, votes: 0 },
+                { name: "선택12: 거실+주방+침실1,2,3+알파룸+가족실", prices: { "117": 14100000 }, votes: 0 }
+            ]
+        },
+        {
+            category: "🍳 주방 가전 (전기쿡탑 / 오븐 / 식기세척기)",
+            items: [
+                { name: "[전기쿡탑] 선택1: 3구 인덕션 (LG)", prices: { "74": 1200000, "84A": 1200000, "84B": 1200000, "103A": 1200000, "103B": 1200000, "117": 1200000 }, votes: 0 },
+                { name: "[전기쿡탑] 선택2: 3구 인덕션 (삼성)", prices: { "74": 800000, "84A": 800000, "84B": 800000, "103A": 800000, "103B": 800000, "117": 800000 }, votes: 0 },
+                { name: "[전기오븐] 선택1: LG", prices: { "74": 500000, "84A": 500000, "84B": 500000, "103A": 500000, "103B": 500000, "117": 500000 }, votes: 0 },
+                { name: "[전기오븐] 선택2: 삼성", prices: { "74": 350000, "84A": 350000, "84B": 350000, "103A": 350000, "103B": 350000, "117": 350000 }, votes: 0 },
+                { name: "[식기세척기] 선택1: LG", prices: { "74": 1200000, "84A": 1200000, "84B": 1200000, "103A": 1200000, "103B": 1200000, "117": 1200000 }, votes: 0 },
+                { name: "[식기세척기] 선택2: 삼성", prices: { "74": 900000, "84A": 900000, "84B": 900000, "103A": 900000, "103B": 900000, "117": 900000 }, votes: 0 }
+            ]
+        },
+        {
+            category: "🧊 냉장고 Set (냉장+냉동+김치)",
+            items: [
+                { name: "선택1: LG 1도어 세트", prices: { "74": 5700000, "84A": 5700000, "84B": 5700000, "103A": 5700000, "103B": 5700000, "117": 5700000 }, votes: 0 },
+                { name: "선택2: 삼성 1도어 세트", prices: { "74": 5600000, "84A": 5600000, "84B": 5600000, "103A": 5600000, "103B": 5600000, "117": 5600000 }, votes: 0 }
+            ]
+        },
+        {
+            category: "🚪 현관중문 (수동)",
+            items: [
+                { name: "3연동 슬라이딩 + 조명스타일업", prices: { "74": 1700000, "84A": 1700000, "84B": 1700000, "103A": 1700000, "117": 1700000 }, votes: 0 },
+                { name: "스윙 도어 + 조명스타일업", prices: { "103B": 1700000 }, votes: 0 }
+            ]
+        },
+        {
+            category: "✨ 거실 스타일업 특화",
+            items: [
+                { name: "선택1: 거실전면 유럽산 세라믹타일", prices: { "74": 1800000, "84A": 2300000, "84B": 2700000, "103A": 2300000, "103B": 2500000, "117": 2300000 }, votes: 0 },
+                { name: "선택2: 거실후면(소파면) 유럽산세라믹타일+픽쳐레일", prices: { "74": 2300000, "84A": 2300000, "103A": 2600000, "103B": 2600000, "117": 2600000 }, votes: 0 },
+                { name: "[84B 전용] 거실후면, 측면 시트판넬 마감", prices: { "84B": 300000 }, votes: 0 },
+                { name: "선택3: 복도 시트판넬 마감, (침실면)픽쳐레일", prices: { "74": 1000000, "84A": 1000000, "84B": 1300000, "103A": 1500000, "103B": 1500000, "117": 3000000 }, votes: 0 },
+                { name: "선택4: 조명스타일업 (간접등, 커튼박스 등)", prices: { "74": 2000000, "84A": 2500000, "84B": 3000000, "103A": 3000000, "103B": 2900000, "117": 3400000 }, votes: 0 }
+            ]
+        },
+        {
+            category: "🍽️ 주방 스타일업 특화",
+            items: [
+                { name: "선택1: [74] 주방상판/벽 세라믹타일 등 풀패키지", prices: { "74": 9000000 }, votes: 0 },
+                { name: "선택2: [84A] 주방상판/벽 세라믹타일 등 풀패키지", prices: { "84A": 9500000 }, votes: 0 },
+                { name: "선택3: [84B] 주방상판/벽 세라믹타일 등 패키지", prices: { "84B": 3000000 }, votes: 0 },
+                { name: "선택4: [103A, 103B, 117] 주방상판/벽 세라믹타일 등 풀패키지", prices: { "103A": 9800000, "103B": 9800000, "117": 10000000 }, votes: 0 },
+                { name: "선택5: (전타입) 냉장고장 설치", prices: { "74": 1500000, "84A": 1300000, "84B": 1400000, "103A": 1550000, "103B": 1550000, "117": 1550000 }, votes: 0 },
+                { name: "선택6: 조명스타일업 [74]", prices: { "74": 2200000 }, votes: 0 },
+                { name: "선택6: 조명스타일업 [84A, 103A, 103B, 117]", prices: { "84A": 2300000, "103A": 2300000, "103B": 2300000, "117": 2300000 }, votes: 0 },
+                { name: "선택6: 조명스타일업 [84B]", prices: { "84B": 1400000 }, votes: 0 }
+            ]
+        },
+        {
+            category: "🛁 욕실 스타일업 특화",
+            items: [
+                { name: "선택1: 욕실1 유럽산 포세린타일 + 간접등 조명", prices: { "74": 1500000, "84A": 1500000, "84B": 1500000, "103A": 1500000, "103B": 1500000, "117": 1500000 }, votes: 0 },
+                { name: "선택2: 욕실2 유럽산 포세린타일 + 간접등 조명", prices: { "74": 1500000, "84A": 1500000, "84B": 1500000, "103A": 1500000, "103B": 1500000, "117": 1500000 }, votes: 0 }
+            ]
+        },
+        {
+            category: "📦 수납강화 특화",
+            items: [
+                { name: "선택1: 현관수납 (팬트리도어+시스템선반)", prices: { "74": 1000000, "84A": 1000000, "84B": 1000000, "103A": 1100000, "103B": 1000000, "117": 1100000 }, votes: 0 },
+                { name: "선택2: 복도수납A (팬트리도어+시스템선반)", prices: { "84A": 1000000, "84B": 1000000, "103A": 1100000, "103B": 1100000, "117": 1100000 }, votes: 0 },
+                { name: "선택3: 복도수납B (복도장, 가족실 키큰장 등)", prices: { "84B": 3000000, "103A": 1200000, "117": 3500000 }, votes: 0 },
+                { name: "선택4: 알파룸수납 (가구도어+시스템선반)", prices: { "103A": 500000, "117": 500000 }, votes: 0 }
+            ]
+        },
+        {
+            category: "👗 드레스룸 특화",
+            items: [
+                { name: "선택1: 가구도어+조명선반+화장대+조명스타일업", prices: { "74": 4600000, "84A": 5100000, "84B": 4300000, "103A": 7300000, "103B": 7500000, "117": 7200000 }, votes: 0 },
+                { name: "선택2: (타입별) 도어+조명선반+건식벽체 등 추가", prices: { "84A": 4000000, "84B": 4300000, "103B": 4100000 }, votes: 0 },
+                { name: "선택3: [선택1 + 선택2] 일괄선택", prices: { "84A": 8100000, "84B": 7300000, "103B": 10000000 }, votes: 0 }
+            ]
+        },
+        {
+            category: "🪵 바닥 특화 / 침실 붙박이장",
+            items: [
+                { name: "[바닥특화] 거실/주방/복도 스톤보드", prices: { "74": 2100000, "84A": 2400000, "84B": 2400000, "103A": 3000000, "103B": 3000000, "117": 3200000 }, votes: 0 },
+                { name: "[붙박이장] 선택1: 침실2 붙박이장", prices: { "74": 1300000, "84A": 1300000, "84B": 1800000, "103A": 1800000, "103B": 1800000, "117": 1800000 }, votes: 0 },
+                { name: "[붙박이장] 선택2: 침실3 붙박이장", prices: { "74": 1300000, "84A": 1600000, "84B": 1300000, "103A": 1800000, "103B": 1800000, "117": 1800000 }, votes: 0 },
+                { name: "[붙박이장] 선택3: 교차형 붙박이장", prices: { "84B": 2800000, "103A": 3500000, "103B": 3500000, "117": 3500000 }, votes: 0 }
+            ]
+        },
+        {
+            category: "💡 조명특화",
+            items: [
+                { name: "선택1: 안방등 + 침실등", prices: { "74": 1400000 }, votes: 0 },
+                { name: "선택2: 안방(안방등+D/L) + 침실등", prices: { "84A": 1500000, "84B": 1500000 }, votes: 0 },
+                { name: "선택3: 안방등 + 침실등 + 알파룸등", prices: { "103A": 1900000 }, votes: 0 },
+                { name: "선택4: 안방(안방등+D/L) + 침실등 + 알파룸등", prices: { "103B": 2600000 }, votes: 0 },
+                { name: "선택5: 안방등 + 침실등 + 알파룸등 + 가족실등", prices: { "117": 2400000 }, votes: 0 }
+            ]
+        },
+        {
+            category: "📱 스마트라이프 및 기타 욕실옵션",
+            items: [
+                { name: "[스마트] 선택1: 13인치월패드+도어락+스마트스위치(욕실1,2)", prices: { "74": 1000000, "84A": 1000000, "84B": 1000000, "103A": 1000000, "103B": 1000000, "117": 1000000 }, votes: 0 },
+                { name: "[스마트] 선택2: + 스마트스위치(드레스룸1 추가)", prices: { "74": 1100000, "84A": 1100000, "84B": 1100000, "103A": 1100000, "103B": 1100000, "117": 1100000 }, votes: 0 },
+                { name: "[스마트] 선택3: + 스마트스위치(드레스룸1,2 추가)", prices: { "74": 1200000, "84A": 1200000, "84B": 1200000, "103A": 1200000, "103B": 1200000, "117": 1200000 }, votes: 0 },
+                { name: "욕실특화 (아메리칸스탠다드 일체형, 욕실1,2)", prices: { "74": 4300000, "84A": 4300000, "84B": 4300000, "103A": 4300000, "103B": 4300000, "117": 4300000 }, votes: 0 },
+                { name: "욕실복합환풍기 [힘펠] 환기+온풍+제습 (욕실1,2)", prices: { "74": 1100000, "84A": 1100000, "84B": 1100000, "103A": 1100000, "103B": 1100000, "117": 1100000 }, votes: 0 },
+                { name: "저소음 후드 [힘펠] 독립형 디자인", prices: { "74": 1100000, "84A": 1100000, "84B": 1100000, "103A": 1100000, "103B": 1100000, "117": 1100000 }, votes: 0 }
+            ]
+        }
+    ];
+
+    let selectedType = "103B";
+
+    function formatNumber(num) {
+        return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    }
+
+    function renderOptions() {
+        selectedType = document.getElementById('aptType').value;
+        const container = document.getElementById('optionsContainer');
+        container.innerHTML = '';
+
+        optionsData.forEach((group, groupIndex) => {
+            let hasValidOptions = false;
+            let groupHTML = `<div class="option-group">
+                                <div class="group-title">${group.category}</div>`;
+            
+            group.items.forEach((item, itemIndex) => {
+                const price = item.prices[selectedType];
+                // 선택한 타입에 가격 정보가 존재하는 경우만 리스트에 렌더링
+                if (price !== undefined) {
+                    hasValidOptions = true;
+                    groupHTML += `
+                        <div class="option-item">
+                            <label class="option-label">
+                                <input type="checkbox" class="option-checkbox" data-price="${price}" onchange="calculateTotal()">
+                                <div>${item.name}</div>
+                            </label>
+                            <div>
+                                <span class="price">${formatNumber(price)} 원</span>
+                                <button class="vote-btn" onclick="addVote(${groupIndex}, ${itemIndex}, this)">👍 ${item.votes}표</button>
+                            </div>
+                        </div>
+                    `;
+                }
+            });
+
+            groupHTML += `</div>`;
+            
+            // 해당 타입에 적용 가능한 옵션이 하나라도 있을 때만 카테고리 표시
+            if (hasValidOptions) {
+                container.innerHTML += groupHTML;
+            }
+        });
+        
+        calculateTotal(); // 타입 변경 시 체크 상태 초기화에 따른 총합 재계산
+    }
+
+    function calculateTotal() {
+        const checkboxes = document.querySelectorAll('.option-checkbox');
+        let total = 0;
+        checkboxes.forEach(cb => {
+            if (cb.checked) {
+                total += parseInt(cb.getAttribute('data-price'));
+            }
+        });
+        document.getElementById('totalPrice').innerText = formatNumber(total) + " 원";
+    }
+
+    function addVote(groupIdx, itemIdx, btnElement) {
+        // 단톡방이나 웹에서 가볍게 시뮬레이션 해보는 용도입니다 (새로고침 시 초기화)
+        optionsData[groupIdx].items[itemIdx].votes += 1;
+        btnElement.innerText = `👍 ${optionsData[groupIdx].items[itemIdx].votes}표`;
+    }
+
+    // 창이 열릴 때 최초 1회 렌더링 실행
+    window.onload = renderOptions;
+</script>
+
+</body>
+</html>
