@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>에피트 아파트 옵션 선택 계산기</title>
+    <title>서수원 에피트 아파트 옵션 시뮬레이터</title>
     <style>
         body { font-family: 'Malgun Gothic', sans-serif; background-color: #f4f7f6; color: #333; margin: 0; padding: 20px; }
         .container { max-width: 800px; margin: 0 auto; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); padding-bottom: 100px; }
@@ -12,15 +12,27 @@
         select { padding: 10px; font-size: 16px; border-radius: 5px; border: 1px solid #ccc; font-weight: bold; color: #2980b9;}
         .option-group { margin-bottom: 20px; border: 1px solid #e1e8ed; border-radius: 8px; overflow: hidden; }
         .group-title { background: #2c3e50; color: white; padding: 10px 15px; font-weight: bold; border-bottom: 1px solid #e1e8ed; }
-        .option-item { display: flex; align-items: center; justify-content: space-between; padding: 12px 15px; border-bottom: 1px solid #f0f0f0; }
+        .option-item { display: flex; align-items: center; justify-content: space-between; padding: 12px 15px; border-bottom: 1px solid #f0f0f0; flex-wrap: wrap; gap: 10px;}
         .option-item:hover { background-color: #f9fbfb; }
-        .option-item:last-child { border-bottom: none; }
-        .option-label { display: flex; align-items: center; gap: 10px; cursor: pointer; flex: 1; font-size: 15px; }
+        .option-label { display: flex; align-items: center; gap: 10px; cursor: pointer; flex: 1; font-size: 15px; min-width: 250px;}
+        .price-and-btn { display: flex; align-items: center; justify-content: flex-end; gap: 10px; flex-wrap: wrap;}
         .price { font-weight: bold; color: #e74c3c; width: 130px; text-align: right; }
-        .vote-btn { background: #3498db; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 13px; margin-left: 15px; min-width: 60px;}
-        .vote-btn:hover { background: #2980b9; }
+        
+        /* 비고 보기 버튼 스타일 */
+        .info-btn { background: #7f8c8d; color: white; border: none; padding: 4px 10px; border-radius: 4px; font-size: 13px; font-weight: bold; cursor: pointer; margin-left: 8px; transition: 0.2s;}
+        .info-btn:hover { background: #34495e; }
+
+        /* 하단 총합계 고정 바 */
         .total-section { position: fixed; bottom: 0; left: 0; right: 0; background: #2c3e50; color: #fff; padding: 20px; display: flex; justify-content: center; align-items: center; font-size: 22px; box-shadow: 0 -2px 10px rgba(0,0,0,0.3); z-index: 100; gap: 30px;}
         .total-price-text { color: #f1c40f; font-weight: bold; font-size: 26px; }
+
+        /* 팝업(모달) 스타일 */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; align-items: center; justify-content: center; }
+        .modal-content { background: #fff; padding: 20px 25px; border-radius: 8px; width: 90%; max-width: 500px; line-height: 1.6; color: #333; position: relative; box-shadow: 0 4px 15px rgba(0,0,0,0.2);}
+        .close-btn { position: absolute; top: 15px; right: 20px; font-size: 24px; font-weight: bold; cursor: pointer; color: #888; }
+        .close-btn:hover { color: #333; }
+        .modal-title { margin-top: 0; color: #2c3e50; font-size: 18px; border-bottom: 2px solid #ecf0f1; padding-bottom: 10px; margin-bottom: 15px;}
+        .modal-text { font-size: 14px; white-space: pre-line; }
     </style>
 </head>
 <body>
@@ -49,131 +61,138 @@
     <span id="totalPrice" class="total-price-text">0 원</span>
 </div>
 
+<div id="modalOverlay" class="modal-overlay" onclick="closeModal(event)">
+    <div class="modal-content" onclick="event.stopPropagation()">
+        <span class="close-btn" onclick="closeModal()">&times;</span>
+        <h3 class="modal-title">📝 옵션 상세 설명</h3>
+        <div id="modalText" class="modal-text"></div>
+    </div>
+</div>
+
 <script>
-    // 엑셀의 모든 데이터를 정리한 배열입니다. 추후 득표수(votes) 숫자만 수정하시면 됩니다.
     const optionsData = [
         {
             category: "❄️ 천장형 시스템에어컨 (일반형) [LG]",
             items: [
-                { name: "선택1: 거실+침실1", prices: { "74": 4000000 }, votes: 0 },
-                { name: "선택2: 거실+침실1,2,3", prices: { "74": 6900000 }, votes: 0 },
-                { name: "선택3: 거실+주방+침실1", prices: { "84A": 6000000, "84B": 6000000, "103A": 6000000, "103B": 6000000, "117": 6000000 }, votes: 0 },
-                { name: "선택4: 거실+주방+침실1,2,3", prices: { "84A": 8400000, "84B": 8400000, "103A": 8600000, "103B": 8600000, "117": 8800000 }, votes: 0 },
-                { name: "선택5: 거실+주방+침실1,2,3+알파룸", prices: { "103A": 10100000, "103B": 10100000, "117": 11000000 }, votes: 0 },
-                { name: "선택6: 거실+주방+침실1,2,3+알파룸+가족실", prices: { "117": 12500000 }, votes: 0 }
+                { name: "선택1: 거실+침실1", prices: { "74": 4000000 }, remark: "- 미 선택시, 기본 냉매매립배관 2개소 설치(거실, 침실1)\n- 일반형과 고급형 옵션은 혼합 선택불가\n- 고급형(LG프리미엄)은 와이드디자인, 6가지공간 맞춤바람,\n  UV살균, AI건조기능 추가\n- 고급형(LG프리미엄)은 레이더센서 적용모델 아님 (AI바람,\n  AI쾌적수면바람, AI외출절전모드 없음\n- 일반형, 고급형 모델 모두 공기청정 기능은 없음" },
+                { name: "선택2: 거실+침실1,2,3", prices: { "74": 6900000 }, remark: "" },
+                { name: "선택3: 거실+주방+침실1", prices: { "84A": 6000000, "84B": 6000000, "103A": 6000000, "103B": 6000000, "117": 6000000 }, remark: "" },
+                { name: "선택4: 거실+주방+침실1,2,3", prices: { "84A": 8400000, "84B": 8400000, "103A": 8600000, "103B": 8600000, "117": 8800000 }, remark: "" },
+                { name: "선택5: 거실+주방+침실1,2,3+알파룸", prices: { "103A": 10100000, "103B": 10100000, "117": 11000000 }, remark: "• 시스템 에어컨 타입별 제품명 안내 : 74타입–일반형[거실(RNQ0720C2WP), 침실1(RNQ0230C2WP), 침실2,3(RNQ0200C2WP)], 고급형[거실(RNQ0721C2UP), 침실1(RNQ0231C2UP), 침실2,3(RNQ0201C2UP)] / 84A,B타입-일반형[거실(RNQ0720C2WP), 침실1(RNQ0320C2WP), 침실2,3(RNQ0200C2WP)], 고급형[거실(RNQ0721C2UP), 침실1(RNQ0321C2UP), 침실2,3(RNQ0201C2UP)] / 103A,B타입-일반형[거실(RNQ0720C2WP), 주방(RNQ0230C2WP), 침실1(RNQ0320C2WP)], 침실2,3, 알파룸(RNQ0200C2WP), 고급형[거실(RNQ0721C2UP), 주방(RNQ0231C2UP), 침실1(RNQ0321C2UP), 침실2,3, 알파룸(RNQ0201C2UP)] / 117타입-일반형[거실(RNQ0720C2WP), 주방(RNQ0400C2WP), 침실1(RNQ0320C2WP)], 침실2,3, 알파룸, 가족실(RNQ0200C2WP), 고급형[거실(RNQ0721C2UP), 주방(RNQ0401C2UP), 침실1(RNQ0321C2UP), 침실2,3, 알파룸, 가족실(RNQ0201C2UP)]" },
+                { name: "선택6: 거실+주방+침실1,2,3+알파룸+가족실", prices: { "117": 12500000 }, remark: "" }
             ]
         },
         {
             category: "💎 천장형 시스템에어컨 (고급형) [LG]",
             items: [
-                { name: "선택7: 거실+침실1", prices: { "74": 4600000 }, votes: 0 },
-                { name: "선택8: 거실+침실1,2,3", prices: { "74": 7900000 }, votes: 0 },
-                { name: "선택9: 거실+주방+침실1", prices: { "84A": 6800000, "84B": 6800000, "103A": 6800000, "103B": 6800000, "117": 6800000 }, votes: 0 },
-                { name: "선택10: 거실+주방+침실1,2,3", prices: { "84A": 9600000, "84B": 9600000, "103A": 9800000, "103B": 9800000, "117": 10000000 }, votes: 0 },
-                { name: "선택11: 거실+주방+침실1,2,3+알파룸", prices: { "103A": 11500000, "103B": 11500000, "117": 12400000 }, votes: 0 },
-                { name: "선택12: 거실+주방+침실1,2,3+알파룸+가족실", prices: { "117": 14100000 }, votes: 0 }
+                { name: "선택7: 거실+침실1", prices: { "74": 4600000 }, remark: "" },
+                { name: "선택8: 거실+침실1,2,3", prices: { "74": 7900000 }, remark: "" },
+                { name: "선택9: 거실+주방+침실1", prices: { "84A": 6800000, "84B": 6800000, "103A": 6800000, "103B": 6800000, "117": 6800000 }, remark: "" },
+                { name: "선택10: 거실+주방+침실1,2,3", prices: { "84A": 9600000, "84B": 9600000, "103A": 9800000, "103B": 9800000, "117": 10000000 }, remark: "" },
+                { name: "선택11: 거실+주방+침실1,2,3+알파룸", prices: { "103A": 11500000, "103B": 11500000, "117": 12400000 }, remark: "" },
+                { name: "선택12: 거실+주방+침실1,2,3+알파룸+가족실", prices: { "117": 14100000 }, remark: "" }
             ]
         },
         {
             category: "🍳 주방 가전 (전기쿡탑 / 오븐 / 식기세척기)",
             items: [
-                { name: "[전기쿡탑] 선택1: 3구 인덕션 (LG)", prices: { "74": 1200000, "84A": 1200000, "84B": 1200000, "103A": 1200000, "103B": 1200000, "117": 1200000 }, votes: 0 },
-                { name: "[전기쿡탑] 선택2: 3구 인덕션 (삼성)", prices: { "74": 800000, "84A": 800000, "84B": 800000, "103A": 800000, "103B": 800000, "117": 800000 }, votes: 0 },
-                { name: "[전기오븐] 선택1: LG", prices: { "74": 500000, "84A": 500000, "84B": 500000, "103A": 500000, "103B": 500000, "117": 500000 }, votes: 0 },
-                { name: "[전기오븐] 선택2: 삼성", prices: { "74": 350000, "84A": 350000, "84B": 350000, "103A": 350000, "103B": 350000, "117": 350000 }, votes: 0 },
-                { name: "[식기세척기] 선택1: LG", prices: { "74": 1200000, "84A": 1200000, "84B": 1200000, "103A": 1200000, "103B": 1200000, "117": 1200000 }, votes: 0 },
-                { name: "[식기세척기] 선택2: 삼성", prices: { "74": 900000, "84A": 900000, "84B": 900000, "103A": 900000, "103B": 900000, "117": 900000 }, votes: 0 }
+                { name: "[전기쿡탑] 선택1: 3구 인덕션 (LG)", prices: { "74": 1200000, "84A": 1200000, "84B": 1200000, "103A": 1200000, "103B": 1200000, "117": 1200000 }, remark: "- 미 선택시 3구 가스쿡탑 기본설치" },
+                { name: "[전기쿡탑] 선택2: 3구 인덕션 (삼성)", prices: { "74": 800000, "84A": 800000, "84B": 800000, "103A": 800000, "103B": 800000, "117": 800000 }, remark: "" },
+                { name: "[전기오븐] 선택1: LG", prices: { "74": 500000, "84A": 500000, "84B": 500000, "103A": 500000, "103B": 500000, "117": 500000 }, remark: "- 미 선택시 가구수납(도어)\n- 옵션 선택 시에만 해당 용도 콘센트 설치" },
+                { name: "[전기오븐] 선택2: 삼성", prices: { "74": 350000, "84A": 350000, "84B": 350000, "103A": 350000, "103B": 350000, "117": 350000 }, remark: "" },
+                { name: "[식기세척기] 선택1: LG", prices: { "74": 1200000, "84A": 1200000, "84B": 1200000, "103A": 1200000, "103B": 1200000, "117": 1200000 }, remark: "- 미 선택시 가구수납(도어)\n- 옵션 선택 시에만 해당 용도 콘센트 설치" },
+                { name: "[식기세척기] 선택2: 삼성", prices: { "74": 900000, "84A": 900000, "84B": 900000, "103A": 900000, "103B": 900000, "117": 900000 }, remark: "" }
             ]
         },
         {
             category: "🧊 냉장고 Set (냉장+냉동+김치)",
             items: [
-                { name: "선택1: LG 1도어 세트", prices: { "74": 5700000, "84A": 5700000, "84B": 5700000, "103A": 5700000, "103B": 5700000, "117": 5700000 }, votes: 0 },
-                { name: "선택2: 삼성 1도어 세트", prices: { "74": 5600000, "84A": 5600000, "84B": 5600000, "103A": 5600000, "103B": 5600000, "117": 5600000 }, votes: 0 }
+                { name: "선택1: LG 1도어 세트", prices: { "74": 5700000, "84A": 5700000, "84B": 5700000, "103A": 5700000, "103B": 5700000, "117": 5700000 }, remark: "- 미 선택시 냉장고 설치공간 제공 (상부장 미제공)" },
+                { name: "선택2: 삼성 1도어 세트", prices: { "74": 5600000, "84A": 5600000, "84B": 5600000, "103A": 5600000, "103B": 5600000, "117": 5600000 }, remark: "" }
             ]
         },
         {
             category: "🚪 현관중문 (수동)",
             items: [
-                { name: "3연동 슬라이딩 + 조명스타일업", prices: { "74": 1700000, "84A": 1700000, "84B": 1700000, "103A": 1700000, "117": 1700000 }, votes: 0 },
-                { name: "스윙 도어 + 조명스타일업", prices: { "103B": 1700000 }, votes: 0 }
+                { name: "3연동 슬라이딩 + 조명스타일업", prices: { "74": 1700000, "84A": 1700000, "84B": 1700000, "103A": 1700000, "117": 1700000 }, remark: "- 미 선택시 : 현관 날개벽 설치, 신발장하부간접등 미설치\n(옵션선택시 날개벽 삭제)\n- 신발장하부간접등은 현관원형매입센서등과 함께 점등" },
+                { name: "스윙 도어 + 조명스타일업", prices: { "103B": 1700000 }, remark: "" }
             ]
         },
         {
             category: "✨ 거실 스타일업 특화",
             items: [
-                { name: "선택1: 거실전면 유럽산 세라믹타일", prices: { "74": 1800000, "84A": 2300000, "84B": 2700000, "103A": 2300000, "103B": 2500000, "117": 2300000 }, votes: 0 },
-                { name: "선택2: 거실후면(소파면) 유럽산세라믹타일+픽쳐레일", prices: { "74": 2300000, "84A": 2300000, "103A": 2600000, "103B": 2600000, "117": 2600000 }, votes: 0 },
-                { name: "[84B 전용] 거실후면, 측면 시트판넬 마감", prices: { "84B": 300000 }, votes: 0 },
-                { name: "선택3: 복도 시트판넬 마감, (침실면)픽쳐레일", prices: { "74": 1000000, "84A": 1000000, "84B": 1300000, "103A": 1500000, "103B": 1500000, "117": 3000000 }, votes: 0 },
-                { name: "선택4: 조명스타일업 (간접등, 커튼박스 등)", prices: { "74": 2000000, "84A": 2500000, "84B": 3000000, "103A": 3000000, "103B": 2900000, "117": 3400000 }, votes: 0 }
+                { name: "선택1: 거실전면 유럽산 세라믹타일", prices: { "74": 1800000, "84A": 2300000, "84B": 2700000, "103A": 2300000, "103B": 2500000, "117": 2300000 }, remark: "- 미 선택시 : 기본타일(400X800) 설치" },
+                { name: "선택2: 거실후면(소파면) 유럽산세라믹타일+픽쳐레일", prices: { "74": 2300000, "84A": 2300000, "103A": 2600000, "103B": 2600000, "117": 2600000 }, remark: "" },
+                { name: "[84B 전용] 거실후면, 측면 시트판넬 마감", prices: { "84B": 300000 }, remark: "" },
+                { name: "선택3: 복도 시트판넬 마감, (침실면)픽쳐레일", prices: { "74": 1000000, "84A": 1000000, "84B": 1300000, "103A": 1500000, "103B": 1500000, "117": 3000000 }, remark: "" },
+                { name: "선택4: 조명스타일업 (간접등, 커튼박스 등)", prices: { "74": 2000000, "84A": 2500000, "84B": 3000000, "103A": 3000000, "103B": 2900000, "117": 3400000 }, remark: "" }
             ]
         },
         {
             category: "🍽️ 주방 스타일업 특화",
             items: [
-                { name: "선택1: [74] 주방상판/벽 세라믹타일 등 풀패키지", prices: { "74": 9000000 }, votes: 0 },
-                { name: "선택2: [84A] 주방상판/벽 세라믹타일 등 풀패키지", prices: { "84A": 9500000 }, votes: 0 },
-                { name: "선택3: [84B] 주방상판/벽 세라믹타일 등 패키지", prices: { "84B": 3000000 }, votes: 0 },
-                { name: "선택4: [103A, 103B, 117] 주방상판/벽 세라믹타일 등 풀패키지", prices: { "103A": 9800000, "103B": 9800000, "117": 10000000 }, votes: 0 },
-                { name: "선택5: (전타입) 냉장고장 설치", prices: { "74": 1500000, "84A": 1300000, "84B": 1400000, "103A": 1550000, "103B": 1550000, "117": 1550000 }, votes: 0 },
-                { name: "선택6: 조명스타일업 [74]", prices: { "74": 2200000 }, votes: 0 },
-                { name: "선택6: 조명스타일업 [84A, 103A, 103B, 117]", prices: { "84A": 2300000, "103A": 2300000, "103B": 2300000, "117": 2300000 }, votes: 0 },
-                { name: "선택6: 조명스타일업 [84B]", prices: { "84B": 1400000 }, votes: 0 }
+                { name: "선택1: [74] 주방상판/벽 세라믹타일 등 풀패키지", prices: { "74": 9000000 }, remark: "- 미 선택시 벽타일(300X600)+상판(인조석:MMA)+\n일반싱크볼+기본수전+LPM가구마감\n- 미선택 시 우물천장+간접등박스 삭제 / 기본형 조명\n설치\n- [선택5] 미선택시 냉장고장 미설치, 경량벽체 미설치\n- [선택1,2,3,4] 선택시 [선택6] 조명스타일업 선택 가능\n- [선택6] 미선택 시 우물천장+간접등박스 삭제(84B제외) /\n기본형 조명 설치\n- 디밍기능 : 식탁D/L(3\"), 아일랜드D/L(3\")" },
+                { name: "선택2: [84A] 주방상판/벽 세라믹타일 등 풀패키지", prices: { "84A": 9500000 }, remark: "" },
+                { name: "선택3: [84B] 주방상판/벽 세라믹타일 등 패키지", prices: { "84B": 3000000 }, remark: "" },
+                { name: "선택4: [103A, 103B, 117] 주방상판/벽 세라믹타일 등 풀패키지", prices: { "103A": 9800000, "103B": 9800000, "117": 10000000 }, remark: "" },
+                { name: "선택5: (전타입) 냉장고장 설치", prices: { "74": 1500000, "84A": 1300000, "84B": 1400000, "103A": 1550000, "103B": 1550000, "117": 1550000 }, remark: "" },
+                { name: "선택6: 조명스타일업 [74]", prices: { "74": 2200000 }, remark: "" },
+                { name: "선택6: 조명스타일업 [84A, 103A, 103B, 117]", prices: { "84A": 2300000, "103A": 2300000, "103B": 2300000, "117": 2300000 }, remark: "" },
+                { name: "선택6: 조명스타일업 [84B]", prices: { "84B": 1400000 }, remark: "" }
             ]
         },
         {
             category: "🛁 욕실 스타일업 특화",
             items: [
-                { name: "선택1: 욕실1 유럽산 포세린타일 + 간접등 조명", prices: { "74": 1500000, "84A": 1500000, "84B": 1500000, "103A": 1500000, "103B": 1500000, "117": 1500000 }, votes: 0 },
-                { name: "선택2: 욕실2 유럽산 포세린타일 + 간접등 조명", prices: { "74": 1500000, "84A": 1500000, "84B": 1500000, "103A": 1500000, "103B": 1500000, "117": 1500000 }, votes: 0 }
+                { name: "선택1: 욕실1 유럽산 포세린타일 + 간접등 조명", prices: { "74": 1500000, "84A": 1500000, "84B": 1500000, "103A": 1500000, "103B": 1500000, "117": 1500000 }, remark: "- 미 선택시 기본타일(벽/바닥), 욕실장하부간접등 삭제\n- 욕실장하부간접등은 천장에 설치되는 전용센서로 점등" },
+                { name: "선택2: 욕실2 유럽산 포세린타일 + 간접등 조명", prices: { "74": 1500000, "84A": 1500000, "84B": 1500000, "103A": 1500000, "103B": 1500000, "117": 1500000 }, remark: "" }
             ]
         },
         {
             category: "📦 수납강화 특화",
             items: [
-                { name: "선택1: 현관수납 (팬트리도어+시스템선반)", prices: { "74": 1000000, "84A": 1000000, "84B": 1000000, "103A": 1100000, "103B": 1000000, "117": 1100000 }, votes: 0 },
-                { name: "선택2: 복도수납A (팬트리도어+시스템선반)", prices: { "84A": 1000000, "84B": 1000000, "103A": 1100000, "103B": 1100000, "117": 1100000 }, votes: 0 },
-                { name: "선택3: 복도수납B (복도장, 가족실 키큰장 등)", prices: { "84B": 3000000, "103A": 1200000, "117": 3500000 }, votes: 0 },
-                { name: "선택4: 알파룸수납 (가구도어+시스템선반)", prices: { "103A": 500000, "117": 500000 }, votes: 0 }
+                { name: "선택1: 현관수납 (팬트리도어+시스템선반)", prices: { "74": 1000000, "84A": 1000000, "84B": 1000000, "103A": 1100000, "103B": 1000000, "117": 1100000 }, remark: "- [선택1] 미 선택시, 빈 공간으로 시공되며, 도배지+걸레받이로 마감됩니다.\n- [선택2] 미 선택시 도배지+걸레받이로 마감됩니다.\n- [선택3] 미 선택시 도배지+걸레받이로 마감됩니다.\n- [선택4] 미 선택시 빈 공간으로 시공되며, 도배지+걸레받이로 마감됩니다." },
+                { name: "선택2: 복도수납A (팬트리도어+시스템선반)", prices: { "84A": 1000000, "84B": 1000000, "103A": 1100000, "103B": 1100000, "117": 1100000 }, remark: "" },
+                { name: "선택3: 복도수납B (복도장, 가족실 키큰장 등)", prices: { "84B": 3000000, "103A": 1200000, "117": 3500000 }, remark: "" },
+                { name: "선택4: 알파룸수납 (가구도어+시스템선반)", prices: { "103A": 500000, "117": 500000 }, remark: "" }
             ]
         },
         {
             category: "👗 드레스룸 특화",
             items: [
-                { name: "선택1: 가구도어+조명선반+화장대+조명스타일업", prices: { "74": 4600000, "84A": 5100000, "84B": 4300000, "103A": 7300000, "103B": 7500000, "117": 7200000 }, votes: 0 },
-                { name: "선택2: (타입별) 도어+조명선반+건식벽체 등 추가", prices: { "84A": 4000000, "84B": 4300000, "103B": 4100000 }, votes: 0 },
-                { name: "선택3: [선택1 + 선택2] 일괄선택", prices: { "84A": 8100000, "84B": 7300000, "103B": 10000000 }, votes: 0 }
+                { name: "선택1: 가구도어+조명선반+화장대+조명스타일업", prices: { "74": 4600000, "84A": 5100000, "84B": 4300000, "103A": 7300000, "103B": 7500000, "117": 7200000 }, remark: "- 미 선택시 입식화장대, 가구도어, 벽판넬조명선반(일체),\n건식벽체 미설치\n- 미 선택시 기본마감(마루, 도배)만 설치 / 기본형 조명\n설치\n- 의류관리기 전력공급을 위한 콘센트 제공 됨\n- [선택1] 선택시, 드레스룸 및 입식화장대 조명은\n전용스위치에서 점소등\n- [선택2] 선택시, 84A, 103B 신설 드레스룸 조명선반은\n침실1(안방) 스위치에서 점소등\n- [선택2] 선택시, 84B 신설 드레스룸 조명은 전용\n스위치에서 점소등\n- [선택2] 미 선택시 84A, 103B 타입은 AL도어,\n벽판넬조명선반(일체) 미설치\n- [선택2] 미 선택시 84B 타입은 가구도어,\n벽판넬조명선반(일체), 건식벽체 미설치" },
+                { name: "선택2: (타입별) 도어+조명선반+건식벽체 등 추가", prices: { "84A": 4000000, "84B": 4300000, "103B": 4100000 }, remark: "" },
+                { name: "선택3: [선택1 + 선택2] 일괄선택", prices: { "84A": 8100000, "84B": 7300000, "103B": 10000000 }, remark: "" }
             ]
         },
         {
             category: "🪵 바닥 특화 / 침실 붙박이장",
             items: [
-                { name: "[바닥특화] 거실/주방/복도 스톤보드", prices: { "74": 2100000, "84A": 2400000, "84B": 2400000, "103A": 3000000, "103B": 3000000, "117": 3200000 }, votes: 0 },
-                { name: "[붙박이장] 선택1: 침실2 붙박이장", prices: { "74": 1300000, "84A": 1300000, "84B": 1800000, "103A": 1800000, "103B": 1800000, "117": 1800000 }, votes: 0 },
-                { name: "[붙박이장] 선택2: 침실3 붙박이장", prices: { "74": 1300000, "84A": 1600000, "84B": 1300000, "103A": 1800000, "103B": 1800000, "117": 1800000 }, votes: 0 },
-                { name: "[붙박이장] 선택3: 교차형 붙박이장", prices: { "84B": 2800000, "103A": 3500000, "103B": 3500000, "117": 3500000 }, votes: 0 }
+                { name: "[바닥특화] 거실/주방/복도 포세린타일", prices: { "74": 2100000, "84A": 2400000, "84B": 2400000, "103A": 3000000, "103B": 3000000, "117": 3200000 }, remark: "- 미 선택시 : 기본마루 설치\n- 침실1,2,3, 드레스룸, \n알파룸, 가족실은 미적용" },
+                { name: "[붙박이장] 선택1: 침실2 붙박이장", prices: { "74": 1300000, "84A": 1300000, "84B": 1800000, "103A": 1800000, "103B": 1800000, "117": 1800000 }, remark: "- 미 선택시 가구 미설치\n- 선택1, 선택2 각각 선택가능\n- 선택3 선택시 선택1,2 선택 불가\n※ 선택시 침실규격 일부 축소됨" },
+                { name: "[붙박이장] 선택2: 침실3 붙박이장", prices: { "74": 1300000, "84A": 1600000, "84B": 1300000, "103A": 1800000, "103B": 1800000, "117": 1800000 }, remark: "" },
+                { name: "[붙박이장] 선택3: 교차형 붙박이장", prices: { "84B": 2800000, "103A": 3500000, "103B": 3500000, "117": 3500000 }, remark: "" }
             ]
         },
         {
             category: "💡 조명특화",
             items: [
-                { name: "선택1: 안방등 + 침실등", prices: { "74": 1400000 }, votes: 0 },
-                { name: "선택2: 안방(안방등+D/L) + 침실등", prices: { "84A": 1500000, "84B": 1500000 }, votes: 0 },
-                { name: "선택3: 안방등 + 침실등 + 알파룸등", prices: { "103A": 1900000 }, votes: 0 },
-                { name: "선택4: 안방(안방등+D/L) + 침실등 + 알파룸등", prices: { "103B": 2600000 }, votes: 0 },
-                { name: "선택5: 안방등 + 침실등 + 알파룸등 + 가족실등", prices: { "117": 2400000 }, votes: 0 }
+                { name: "선택1: 안방등 + 침실등", prices: { "74": 1400000 }, remark: "- 미 선택시 기본형 설치\n- 디밍/색온도 기능 : 안방등, 침실등" },
+                { name: "선택2: 안방(안방등+D/L(2\")) + 침실등", prices: { "84A": 1500000, "84B": 1500000 }, remark: "- 미 선택시 기본형 설치\n- 디밍/색온도 기능 : 안방등, 침실등, 알파룸등, 가족실등" },
+                { name: "선택3: 안방등 + 침실등 + 알파룸등", prices: { "103A": 1900000 }, remark: "- 미 선택시 기본형 설치\n- 디밍/색온도 기능 : 안방등, 침실등, 알파룸등" },
+                { name: "선택4: 안방(안방등+D/L(2\")) + 침실등 + 알파룸등", prices: { "103B": 2600000 }, remark: "- 미 선택시 기본형 설치\n- 디밍/색온도 기능 : 안방등, 침실등, 알파룸등, 가족실등" },
+                { name: "선택5: 안방등 + 침실등 + 알파룸등 + 가족실등", prices: { "117": 2400000 }, remark: "- 미 선택시 기본형 설치\n- 디밍/색온도 기능 : 안방등, 침실등, 알파룸등, 가족실등" }
             ]
         },
         {
             category: "📱 스마트라이프 및 기타 욕실옵션",
             items: [
-                { name: "[스마트] 선택1: 13인치월패드+도어락+스마트스위치(욕실1,2)", prices: { "74": 1000000, "84A": 1000000, "84B": 1000000, "103A": 1000000, "103B": 1000000, "117": 1000000 }, votes: 0 },
-                { name: "[스마트] 선택2: + 스마트스위치(드레스룸1 추가)", prices: { "74": 1100000, "84A": 1100000, "84B": 1100000, "103A": 1100000, "103B": 1100000, "117": 1100000 }, votes: 0 },
-                { name: "[스마트] 선택3: + 스마트스위치(드레스룸1,2 추가)", prices: { "74": 1200000, "84A": 1200000, "84B": 1200000, "103A": 1200000, "103B": 1200000, "117": 1200000 }, votes: 0 },
-                { name: "욕실특화 (아메리칸스탠다드 일체형, 욕실1,2)", prices: { "74": 4300000, "84A": 4300000, "84B": 4300000, "103A": 4300000, "103B": 4300000, "117": 4300000 }, votes: 0 },
-                { name: "욕실복합환풍기 [힘펠] 환기+온풍+제습 (욕실1,2)", prices: { "74": 1100000, "84A": 1100000, "84B": 1100000, "103A": 1100000, "103B": 1100000, "117": 1100000 }, votes: 0 },
-                { name: "저소음 후드 [힘펠] 독립형 디자인", prices: { "74": 1100000, "84A": 1100000, "84B": 1100000, "103A": 1100000, "103B": 1100000, "117": 1100000 }, votes: 0 }
+                { name: "[스마트] 선택1: 13인치월패드+도어락+스마트스위치(욕실1,2)", prices: { "74": 1000000, "84A": 1000000, "84B": 1000000, "103A": 1000000, "103B": 1000000, "117": 1000000 }, remark: "-미선택시 기본형 설치(10인치 월패드, 일반형 도어카메라,\n일반형 도어락, 일반형 스위치(욕실1, 욕실2))" },
+                { name: "[스마트] 선택2: + 스마트스위치(드레스룸1 추가)", prices: { "74": 1100000, "84A": 1100000, "84B": 1100000, "103A": 1100000, "103B": 1100000, "117": 1100000 }, remark: "-미선택시 기본형 설치(10인치 월패드, 일반형 도어카메라,\n일반형 도어락, 일반형 스위치(욕실1, 욕실2, 드레스룸))\n- 드레스룸특화 [선택1] 선택시, 선택가능" },
+                { name: "[스마트] 선택3: + 스마트스위치(드레스룸1,2 추가)", prices: { "74": 1200000, "84A": 1200000, "84B": 1200000, "103A": 1200000, "103B": 1200000, "117": 1200000 }, remark: "-미선택시 기본형 설치(10인치 \n월패드, 일반형 도어카메라,\n일반형 도어락, 일반형 스위치(욕실1, 욕실2, 드레스룸))\n- 드레스룸특화 [선택2] 선택시, 선택가능" },
+                { name: "욕실특화 (아메리칸스탠다드 일체형, 욕실1,2)", prices: { "74": 4300000, "84A": 4300000, "84B": 4300000, "103A": 4300000, "103B": 4300000, "117": 4300000 }, remark: "- 욕실1, 2 일괄 선택\n- 미 선택시 기본형 설치" },
+                { name: "욕실복합환풍기 [힘펠] 환기+온풍+제습 (욕실1,2)", prices: { "74": 1100000, "84A": 1100000, "84B": 1100000, "103A": 1100000, "103B": 1100000, "117": 1100000 }, remark: "- 욕실1, 2 일괄선택\n- 미 선택시 기본형 (배기전용) 설치" },
+                { name: "저소음 후드 [힘펠] 독립형 디자인", prices: { "74": 1100000, "84A": 1100000, "84B": 1100000, "103A": 1100000, "103B": 1100000, "117": 1100000 }, remark: "- 미 선택시 기본형 후드(침니형) 설치" }
             ]
         }
     ];
@@ -189,25 +208,29 @@
         const container = document.getElementById('optionsContainer');
         container.innerHTML = '';
 
-        optionsData.forEach((group, groupIndex) => {
+        optionsData.forEach((group) => {
             let hasValidOptions = false;
-            let groupHTML = `<div class="option-group">
-                                <div class="group-title">${group.category}</div>`;
+            let groupHTML = `<div class="option-group"><div class="group-title">${group.category}</div>`;
             
-            group.items.forEach((item, itemIndex) => {
+            group.items.forEach((item) => {
                 const price = item.prices[selectedType];
-                // 선택한 타입에 가격 정보가 존재하는 경우만 리스트에 렌더링
                 if (price !== undefined) {
                     hasValidOptions = true;
+                    
+                    let remarkButton = "";
+                    if (item.remark && item.remark.trim() !== "") {
+                        let encodedRemark = encodeURIComponent(item.remark);
+                        remarkButton = `<button type="button" class="info-btn" onclick="showModal('${encodedRemark}')">📝 비고</button>`;
+                    }
+
                     groupHTML += `
                         <div class="option-item">
                             <label class="option-label">
                                 <input type="checkbox" class="option-checkbox" data-price="${price}" onchange="calculateTotal()">
-                                <div>${item.name}</div>
+                                <div>${item.name} ${remarkButton}</div>
                             </label>
-                            <div>
+                            <div class="price-and-btn">
                                 <span class="price">${formatNumber(price)} 원</span>
-                                <button class="vote-btn" onclick="addVote(${groupIndex}, ${itemIndex}, this)">👍 ${item.votes}표</button>
                             </div>
                         </div>
                     `;
@@ -215,34 +238,29 @@
             });
 
             groupHTML += `</div>`;
-            
-            // 해당 타입에 적용 가능한 옵션이 하나라도 있을 때만 카테고리 표시
-            if (hasValidOptions) {
-                container.innerHTML += groupHTML;
-            }
+            if (hasValidOptions) container.innerHTML += groupHTML;
         });
-        
-        calculateTotal(); // 타입 변경 시 체크 상태 초기화에 따른 총합 재계산
+        calculateTotal();
     }
 
     function calculateTotal() {
         const checkboxes = document.querySelectorAll('.option-checkbox');
         let total = 0;
         checkboxes.forEach(cb => {
-            if (cb.checked) {
-                total += parseInt(cb.getAttribute('data-price'));
-            }
+            if (cb.checked) total += parseInt(cb.getAttribute('data-price'));
         });
         document.getElementById('totalPrice').innerText = formatNumber(total) + " 원";
     }
 
-    function addVote(groupIdx, itemIdx, btnElement) {
-        // 단톡방이나 웹에서 가볍게 시뮬레이션 해보는 용도입니다 (새로고침 시 초기화)
-        optionsData[groupIdx].items[itemIdx].votes += 1;
-        btnElement.innerText = `👍 ${optionsData[groupIdx].items[itemIdx].votes}표`;
+    function showModal(encodedContent) {
+        document.getElementById('modalText').innerText = decodeURIComponent(encodedContent);
+        document.getElementById('modalOverlay').style.display = 'flex';
     }
 
-    // 창이 열릴 때 최초 1회 렌더링 실행
+    function closeModal(event) {
+        document.getElementById('modalOverlay').style.display = 'none';
+    }
+
     window.onload = renderOptions;
 </script>
 
