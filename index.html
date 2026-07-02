@@ -23,8 +23,12 @@
         .info-btn:hover { background: #34495e; }
 
         /* 하단 총합계 고정 바 */
-        .total-section { position: fixed; bottom: 0; left: 0; right: 0; background: #2c3e50; color: #fff; padding: 20px; display: flex; justify-content: center; align-items: center; font-size: 22px; box-shadow: 0 -2px 10px rgba(0,0,0,0.3); z-index: 100; gap: 30px;}
-        .total-price-text { color: #f1c40f; font-weight: bold; font-size: 26px; }
+        .total-section { position: fixed; bottom: 0; left: 0; right: 0; background: #2c3e50; color: #fff; padding: 20px; display: flex; justify-content: center; align-items: center; font-size: 22px; box-shadow: 0 -2px 10px rgba(0,0,0,0.3); z-index: 100; gap: 15px;}
+        .total-price-text { color: #f1c40f; font-weight: bold; font-size: 26px; margin-right: 15px; }
+
+        /* PDF 출력 버튼 스타일 */
+        .print-btn { background: #f1c40f; color: #2c3e50; border: none; padding: 8px 16px; border-radius: 4px; font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.2s;}
+        .print-btn:hover { background: #f39c12; color: #fff; }
 
         /* 팝업(모달) 스타일 */
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; align-items: center; justify-content: center; }
@@ -33,32 +37,70 @@
         .close-btn:hover { color: #333; }
         .modal-title { margin-top: 0; color: #2c3e50; font-size: 18px; border-bottom: 2px solid #ecf0f1; padding-bottom: 10px; margin-bottom: 15px;}
         .modal-text { font-size: 14px; white-space: pre-line; }
+
+        /* 🖨️ 인쇄/PDF 출력 전용 CSS 스타일 (A4 용지 맞춤 자동 정돈) */
+        @media print {
+            body { background: #fff; color: #000; padding: 0; margin: 15mm 10mm; }
+            .container { box-shadow: none; max-width: 100%; padding: 0; margin: 0; }
+            h1, .type-selector, .total-section, .info-btn { display: none !important; }
+            
+            /* PDF 상단 타이틀 양식 생성 */
+            .print-header { display: block !important; text-align: center; margin-bottom: 25px; border-bottom: 2px solid #2c3e50; padding-bottom: 15px; }
+            .print-header h2 { margin: 0 0 10px 0; color: #2c3e50; font-size: 24px; }
+            
+            /* 선택한 옵션 항목이 포함된 그룹만 인쇄하고 나머지는 숨김 */
+            .option-group { display: none !important; border: 1px solid #ccc; margin-bottom: 20px; border-radius: 4px; overflow: hidden; page-break-inside: avoid; }
+            .option-group:has(.option-checkbox:checked) { display: block !important; }
+            .group-title { background: #f2f4f4 !important; color: #2c3e50 !important; border-bottom: 1px solid #ccc; padding: 8px 12px; font-weight: bold; }
+            
+            /* 선택한 옵션 줄만 인쇄하고 선택 안 한 옵션은 숨김 */
+            .option-item { display: none !important; }
+            .option-item:has(.option-checkbox:checked) { display: flex !important; justify-content: space-between; align-items: center; padding: 10px 15px; border-bottom: 1px solid #f0f0f0; font-size: 14px; }
+            .option-item:last-child { border-bottom: none; }
+            .option-item:has(.option-checkbox:checked) .option-label input { display: none !important; } /* 체크박스 네모 감추기 */
+            
+            /* PDF 하단 총합계 양식 생성 */
+            .print-total { display: block !important; text-align: right; font-size: 18px; font-weight: bold; margin-top: 30px; border-top: 2px solid #2c3e50; padding-top: 15px; }
+            .print-total-price { color: #e74c3c; font-size: 22px; }
+        }
     </style>
 </head>
 <body>
 
 <div class="container">
+    <div class="print-only print-header" style="display: none;">
+        <h2>서수원 에피트 옵션 선택 확인서</h2>
+        <p id="printTypeInfo" style="font-weight: bold; font-size: 16px; margin: 5px 0 0 0; color: #34495e;"></p>
+    </div>
+
     <h1>서수원 에피트 옵션 시뮬레이터</h1>
     
     <div class="type-selector">
         <label for="aptType"><b>내 타입 선택 : </b></label>
         <select id="aptType" onchange="renderOptions()">
+            <option value="" disabled selected>== 타입을 선택해 주세요 ==</option>
             <option value="74">74 타입</option>
             <option value="84A">84A 타입</option>
             <option value="84B">84B 타입</option>
             <option value="103A">103A 타입</option>
-            <option value="103B" selected>103B 타입</option>
+            <option value="103B">103B 타입</option>
             <option value="117">117 타입</option>
         </select>
     </div>
 
     <div id="optionsContainer">
         </div>
+
+    <div class="print-only print-total" style="display: none;">
+        <span>최종 합계 금액: </span>
+        <span id="printTotalPrice" class="print-total-price">0 원</span>
+    </div>
 </div>
 
-<div class="total-section">
+<div id="totalSection" class="total-section" style="display: none;">
     <span>합계 금액 :</span>
     <span id="totalPrice" class="total-price-text">0 원</span>
+    <button type="button" class="print-btn" onclick="printPDF()">📄 PDF 출력</button>
 </div>
 
 <div id="modalOverlay" class="modal-overlay" onclick="closeModal(event)">
@@ -70,6 +112,7 @@
 </div>
 
 <script>
+    // 엑셀 원본 비고 텍스트 원본 유지 데이터
     const optionsData = [
         {
             category: "❄️ 천장형 시스템에어컨 (일반형) [LG]",
@@ -197,7 +240,7 @@
         }
     ];
 
-    let selectedType = "103B";
+    let selectedType = "";
 
     function formatNumber(num) {
         return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
@@ -206,6 +249,19 @@
     function renderOptions() {
         selectedType = document.getElementById('aptType').value;
         const container = document.getElementById('optionsContainer');
+        const totalBar = document.getElementById('totalSection');
+        
+        // 타입을 아직 안 골랐을 때 초기 상태 처리
+        if (!selectedType) {
+            container.innerHTML = `<div style="text-align:center; padding: 50px 20px; color:#7f8c8d; font-size:16px; font-weight:bold; line-height:1.6;">
+                위에 있는 '내 타입 선택' 메뉴를 클릭해서<br>분양받으신 평형대를 고르시면 옵션 리스트가 열립니다!
+            </div>`;
+            totalBar.style.display = 'none';
+            return;
+        }
+
+        // 타입을 골랐다면 리스트 활성화 및 하단 바 노출
+        totalBar.style.display = 'flex';
         container.innerHTML = '';
 
         optionsData.forEach((group) => {
@@ -249,18 +305,34 @@
         checkboxes.forEach(cb => {
             if (cb.checked) total += parseInt(cb.getAttribute('data-price'));
         });
-        document.getElementById('totalPrice').innerText = formatNumber(total) + " 원";
+        
+        const formatted = formatNumber(total) + " 원";
+        document.getElementById('totalPrice').innerText = formatted;
+        document.getElementById('printTotalPrice').innerText = formatted; // PDF용 숨겨진 데이터에도 반영
     }
 
+    // 팝업 기능
     function showModal(encodedContent) {
         document.getElementById('modalText').innerText = decodeURIComponent(encodedContent);
         document.getElementById('modalOverlay').style.display = 'flex';
     }
 
-    function closeModal(event) {
+    function closeModal() {
         document.getElementById('modalOverlay').style.display = 'none';
     }
 
+    // 📄 브라우저 인쇄를 연동한 클라이언트용 PDF 출력 처리 함수
+    function printPDF() {
+        if (!selectedType) return;
+        
+        // 인쇄용 양식지 헤더에 현재 선택된 타입 정보를 텍스트로 삽입
+        document.getElementById('printTypeInfo').innerText = "신청 세대 타입 : " + selectedType + " 타입";
+        
+        // 시스템 기본 인쇄창(PDF 저장 가능) 호출
+        window.print();
+    }
+
+    // 페이지 실행 시 기본 렌더링 호출 (선택 유도 안내 문구 표시)
     window.onload = renderOptions;
 </script>
 
